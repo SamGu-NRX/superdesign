@@ -90,17 +90,18 @@ export class CustomAgentService implements AgentService {
         if (specificModel) {
             this.outputChannel.appendLine(`Using specific AI model: ${specificModel}`);
         }
-        
         // Determine provider from model name if specific model is set, ignore if custom openai url is used
         let effectiveProvider = provider;
-        const localProviders = ['claude-code', 'codex-cli'];
+        const localProviders = ['claude-code', 'codex-cli', 'vscodelm'];
         const shouldInferFromModel =
             specificModel &&
             !(!openaiUrl && provider === 'openai') &&
             !localProviders.includes(provider);
 
         if (shouldInferFromModel) {
-            if (specificModel.includes('/')) {
+            if (specificModel === 'vscodelm' || specificModel.startsWith('vscodelm')) {
+                effectiveProvider = 'vscodelm';
+            } else if (specificModel.includes('/')) {
                 effectiveProvider = 'openrouter';
             } else if (specificModel.startsWith('claude-')) {
                 effectiveProvider = 'anthropic';
@@ -110,6 +111,9 @@ export class CustomAgentService implements AgentService {
         }
         
         switch (effectiveProvider) {
+            case 'vscodelm':
+                // This case is handled in the query method before reaching this point
+                throw new Error('VS Code LM provider should be handled before getModel() is called');
             case 'openrouter':
                 const openrouterKey = config.get<string>('openrouterApiKey');
                 if (!openrouterKey) {
@@ -618,15 +622,19 @@ I've created the html design, please reveiw and let me know if you need any chan
         const llmProvider = config.get<string>('llmProvider', 'claude-api');
         const specificModel = config.get<string>('aiModel');
         
-        const localProviders = ['claude-code', 'codex-cli'];
+        const localProviders = ['claude-code', 'codex-cli', 'vscodelm'];
         const isUsingLocalProvider =
             localProviders.includes(aiModelProvider) || localProviders.includes(llmProvider);
 
         if (isUsingLocalProvider) {
-            const activeLocalProvider =
-                llmProvider === 'codex-cli' || aiModelProvider === 'codex-cli'
-                    ? 'codex-cli'
-                    : 'claude-code';
+            let activeLocalProvider: string;
+            if (llmProvider === 'codex-cli' || aiModelProvider === 'codex-cli') {
+                activeLocalProvider = 'codex-cli';
+            } else if (llmProvider === 'vscodelm' || aiModelProvider === 'vscodelm') {
+                activeLocalProvider = 'vscodelm';
+            } else {
+                activeLocalProvider = 'claude-code';
+            }
 
             this.outputChannel.appendLine(
                 `Using ClaudeCodeService bridge for ${activeLocalProvider} provider`
@@ -648,11 +656,14 @@ I've created the html design, please reveiw and let me know if you need any chan
             // Use ClaudeCodeService with streaming callback
             const providerOptions: Partial<LLMProviderOptions> = {
                 streaming: true,
-                cwd: options?.cwd ?? this.workingDirectory
+                cwd: options?.cwd ?? this.workingDirectory,
+                customSystemPrompt: this.getSystemPrompt()
             };
 
             if (specificModel) {
                 providerOptions.modelId = specificModel;
+            } else if (activeLocalProvider === 'vscodelm') {
+                providerOptions.modelId = 'vscodelm/auto';
             }
 
             if (options && typeof options === 'object') {
@@ -1001,7 +1012,9 @@ I've created the html design, please reveiw and let me know if you need any chan
             case 'anthropic':
                 return !!config.get<string>('anthropicApiKey');
             case 'claude-code':
-                return true; // Claude Code doesn't require an API key
+            case 'codex-cli':
+            case 'vscodelm':
+                return true; // Local providers rely on local authentication or binaries
             case 'openai':
             default:
                 return !!config.get<string>('openaiApiKey');

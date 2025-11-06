@@ -3,6 +3,12 @@ dist
 node_modules
 .vscode-test/
 *.vsix
-.env
+
+# local env files
+.env*
+!.env*.example
+
 /dist-test
 /.superdesign
+
+log.txt

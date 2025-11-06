@@ -294,6 +294,7 @@ git tag v0.0.X && git push origin main && git push origin v0.0.X
 
 ## 📝 Version History
 
+- **v0.0.15** - Codex, VSCodeLM Integration
 - **v0.0.14** - SuperdesignDev (Theme-adaptive icon)
 - **v0.0.13** - iganbold deprecation (Theme-adaptive icon + deprecation notice)
 - **v0.0.12** - iganbold deprecation (Initial deprecation release)
