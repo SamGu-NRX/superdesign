@@ -1,0 +1,10 @@
+up down arrow
+
+model selector (cline)
+
+output token counts (cached preview)
+
+metrics.
+ tok/sec
+total tokens outputted
+Time-to-First: 3.8 sec

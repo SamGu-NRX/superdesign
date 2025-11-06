@@ -37,33 +37,33 @@ export class LLMProviderFactory {
 
         // Create new provider
         const provider = await this.createProvider(providerType);
-        
+
         // Initialize the provider
         await provider.waitForInitialization();
-        
+
         // Store the provider
         this.providers.set(providerType, provider);
         this.currentProvider = provider;
-        
+
         return provider;
     }
 
     private async createProvider(providerType: LLMProviderType): Promise<LLMProvider> {
         Logger.info(`Creating provider of type: ${providerType}`);
-        
+
         switch (providerType) {
             case LLMProviderType.CLAUDE_API:
                 return new ClaudeApiProvider(this.outputChannel);
-            
+
             case LLMProviderType.CLAUDE_CODE:
                 return new ClaudeCodeProvider(this.outputChannel);
-            
+
             case LLMProviderType.CODEX:
                 return new CodexProvider(this.outputChannel);
 
             case LLMProviderType.VSCODE_LM:
                 return new VsCodeLmProvider(this.outputChannel);
-            
+
             default:
                 throw new Error(`Unknown provider type: ${providerType}`);
         }
@@ -72,7 +72,7 @@ export class LLMProviderFactory {
     private getConfiguredProviderType(): LLMProviderType {
         const config = vscode.workspace.getConfiguration('superdesign');
         const providerType = config.get<string>('llmProvider', 'claude-api');
-        
+
         // Map string to enum
         switch (providerType.toLowerCase()) {
             case 'claude-code':
@@ -106,11 +106,11 @@ export class LLMProviderFactory {
 
     async switchProvider(providerType: LLMProviderType): Promise<LLMProvider> {
         Logger.info(`Switching to provider: ${providerType}`);
-        
+
         // Update configuration
         const config = vscode.workspace.getConfiguration('superdesign');
         await config.update('llmProvider', providerType, vscode.ConfigurationTarget.Global);
-        
+
         // Get the new provider
         return await this.getProvider(providerType);
     }
@@ -130,7 +130,7 @@ export class LLMProviderFactory {
             {
                 type: LLMProviderType.CODEX,
                 name: 'Codex CLI',
-                description: 'Uses local Codex CLI via the official SDK with ChatGPT, Codex API, or OpenAI API authentication'
+                description: 'Uses local Codex CLI via the official SDK with ChatGPT or OpenAI API authentication'
             },
             {
                 type: LLMProviderType.VSCODE_LM,
@@ -144,7 +144,7 @@ export class LLMProviderFactory {
         try {
             const provider = await this.createProvider(providerType);
             const isValid = await provider.waitForInitialization();
-            
+
             if (!isValid) {
                 return { isValid: false, error: `Failed to initialize ${provider.getProviderName()}` };
             }
@@ -152,7 +152,7 @@ export class LLMProviderFactory {
             // Additional validation based on provider type
             if (!provider.hasValidConfiguration()) {
                 let errorMessage = '';
-                
+
                 switch (providerType) {
                     case LLMProviderType.CLAUDE_API:
                         errorMessage = 'API key is required for Claude API provider';
@@ -161,13 +161,13 @@ export class LLMProviderFactory {
                         errorMessage = 'Claude Code binary is not available. Please install claude-code CLI tool.';
                         break;
                     case LLMProviderType.CODEX:
-                        errorMessage = 'Codex CLI authentication is not configured. Run `codex` to sign in with a ChatGPT subscription (local projects only) or provide CODEX/OpenAI API keys.';
+                        errorMessage = 'Codex CLI authentication is not configured. Run "codex login" to sign in with your ChatGPT subscription (local projects only).';
                         break;
                     case LLMProviderType.VSCODE_LM:
                         errorMessage = 'VS Code LM provider is unavailable. Install and sign in to GitHub Copilot (or another LM provider) inside VS Code.';
                         break;
                 }
-                
+
                 return { isValid: false, error: errorMessage };
             }
 
@@ -190,7 +190,7 @@ export class LLMProviderFactory {
     }> {
         const currentType = this.getConfiguredProviderType();
         const availableProviders = this.getAvailableProviders();
-        
+
         const providerStatuses = await Promise.all(
             availableProviders.map(async (provider) => {
                 const validation = await this.validateProvider(provider.type);

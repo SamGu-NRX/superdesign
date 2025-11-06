@@ -72,6 +72,10 @@ export class CodexProvider extends LLMProvider {
 
             await this.refreshAuthStatus();
 
+            if (!this.hasLocalAuth() && this.hasEnvKeyAuth()) {
+                Logger.info('Codex CLI is falling back to API key authentication; run "codex login" to enable local CLI mode.');
+            }
+
             this.isInitialized = true;
             Logger.info('Codex provider initialized successfully');
         } catch (error) {
@@ -324,6 +328,31 @@ export class CodexProvider extends LLMProvider {
         return messages;
     }
 
+    private hasLocalAuth(): boolean {
+        const codexDir = this.codexHome || path.join(os.homedir(), '.codex');
+        const authFileExists = fs.existsSync(path.join(codexDir, 'auth.json'));
+
+        const statusLoggedIn =
+            this.authStatus &&
+            typeof this.authStatus === 'object' &&
+            this.authStatus.status === 'logged_in';
+
+        const chatgptSubscribed =
+            this.authStatus &&
+            typeof this.authStatus === 'object' &&
+            (this.authStatus.status === 'chatgpt_subscriber' ||
+                (typeof this.authStatus.plan === 'string' &&
+                    this.authStatus.plan.toLowerCase().includes('chatgpt')));
+
+        return Boolean(authFileExists || statusLoggedIn || chatgptSubscribed);
+    }
+
+    private hasEnvKeyAuth(): boolean {
+        const codexKey = process.env.CODEX_API_KEY?.trim();
+        const openAiKey = process.env.OPENAI_API_KEY?.trim();
+        return Boolean(codexKey || openAiKey);
+    }
+
     isReady(): boolean {
         return this.isInitialized;
     }
@@ -343,26 +372,18 @@ export class CodexProvider extends LLMProvider {
     }
 
     hasValidConfiguration(): boolean {
-        const envConfigured =
-            Boolean(process.env.CODEX_API_KEY && process.env.CODEX_API_KEY.trim()) ||
-            Boolean(process.env.OPENAI_API_KEY && process.env.OPENAI_API_KEY.trim());
+        if (this.hasLocalAuth()) {
+            return true;
+        }
 
-        const codexDir = this.codexHome || path.join(os.homedir(), '.codex');
-        const authFileExists = fs.existsSync(path.join(codexDir, 'auth.json'));
+        if (this.hasEnvKeyAuth()) {
+            Logger.warn(
+                'Codex CLI local login not detected; continuing with API key authentication. Run "codex login" to switch to local mode.'
+            );
+            return true;
+        }
 
-        const statusLoggedIn =
-            this.authStatus &&
-            typeof this.authStatus === 'object' &&
-            this.authStatus.status === 'logged_in';
-
-        const chatgptSubscribed =
-            this.authStatus &&
-            typeof this.authStatus === 'object' &&
-            (this.authStatus.status === 'chatgpt_subscriber' ||
-                (typeof this.authStatus.plan === 'string' &&
-                    this.authStatus.plan.toLowerCase().includes('chatgpt')));
-
-        return Boolean(envConfigured || authFileExists || statusLoggedIn || chatgptSubscribed);
+        return false;
     }
 
     async refreshConfiguration(): Promise<boolean> {
