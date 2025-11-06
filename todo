@@ -8,3 +8,8 @@ metrics.
  tok/sec
 total tokens outputted
 Time-to-First: 3.8 sec
+
+
+Error loading canvas
+No workspace folder found. Please open a workspace first.
+

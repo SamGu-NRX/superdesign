@@ -168,11 +168,22 @@ export class ChatSidebarProvider implements vscode.WebviewViewProvider {
             let configureCommand: string;
             let displayName: string;
 
+            const codexModels = new Set([
+                'gpt-5',
+                'gpt-5-codex',
+                'codex-cli'
+            ]);
+
             if (model === 'vscodelm' || model.startsWith('vscodelm')) {
                 provider = 'vscodelm';
                 apiKeyKey = '';
                 configureCommand = '';
                 displayName = `VS Code LM API (${this.getModelDisplayName(model)})`;
+            } else if (codexModels.has(model)) {
+                provider = 'codex-cli';
+                apiKeyKey = '';
+                configureCommand = '';
+                displayName = `Codex CLI (${this.getModelDisplayName(model)})`;
             } else if (model.includes('/')) {
                 // OpenRouter model (contains slash like "openai/gpt-4o")
                 provider = 'openrouter';
@@ -198,12 +209,12 @@ export class ChatSidebarProvider implements vscode.WebviewViewProvider {
             // Keep llmProvider (used by ClaudeCodeService bridge) in sync for local providers
             const llmProviderValue =
                 provider === 'claude-code' || provider === 'codex-cli' || provider === 'vscodelm'
-                    ? (provider === 'claude-code' ? 'claude-code' : provider === 'codex-cli' ? 'codex-cli' : 'vscodelm')
+                    ? provider
                     : 'claude-api';
             await config.update('llmProvider', llmProviderValue, vscode.ConfigurationTarget.Global);
 
             // Check if the API key is configured for the selected provider (skip for vscodelm)
-            if (provider !== 'vscodelm') {
+            if (provider !== 'vscodelm' && provider !== 'codex-cli') {
                 const apiKey = apiKeyKey ? config.get<string>(apiKeyKey) : undefined;
                 if (!apiKey) {
                     const result = await vscode.window.showWarningMessage(
@@ -234,6 +245,10 @@ export class ChatSidebarProvider implements vscode.WebviewViewProvider {
         const modelNames: { [key: string]: string } = {
             // VS Code LM API
             'vscodelm/auto': 'VS Code LM (Auto)',
+            // Codex CLI
+            'gpt-5': 'GPT-5',
+            'gpt-5-codex': 'GPT-5 Codex',
+            'codex-cli': 'Codex CLI',
             // OpenAI models
             'gpt-4.1': 'GPT-4.1',
             'gpt-4.1-mini': 'GPT-4.1 Mini',
