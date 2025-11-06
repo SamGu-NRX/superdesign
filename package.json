@@ -244,14 +244,14 @@
     }
   },
   "scripts": {
-    "vscode:prepublish": "pnpm package",
+    "vscode:prepublish": "pnpm run bundle",
+    "bundle": "pnpm check-types && pnpm lint && node esbuild.js --production",
+    "package": "pnpm vsce package --no-dependencies",
+    "publish": "pnpm vsce publish --no-dependencies",
     "compile": "pnpm check-types && pnpm lint && node esbuild.js",
-    "build:vsix": "pnpm package && vsce package --no-dependencies",
     "watch": "pnpm --parallel watch:*",
     "watch:esbuild": "node esbuild.js --watch",
     "watch:tsc": "tsc --noEmit --watch --project tsconfig.json",
-    "package": "pnpm check-types && pnpm lint && node esbuild.js --production",
-    "build-vsix": "pnpm package && vsce package",
     "compile-tests": "tsc -p . --outDir out",
     "watch-tests": "tsc -p . -w --outDir out",
     "pretest": "pnpm compile-tests && pnpm compile && pnpm lint",
