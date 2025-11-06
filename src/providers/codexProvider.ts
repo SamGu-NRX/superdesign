@@ -2,11 +2,13 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
 import * as os from 'os';
-import { Codex } from '@openai/codex-sdk';
 import { LLMProvider, LLMProviderOptions, LLMMessage } from './llmProvider';
 import { Logger } from '../services/logger';
 
-type CodexThread = ReturnType<Codex['startThread']>;
+type CodexModule = typeof import('@openai/codex-sdk');
+type CodexConstructor = CodexModule['Codex'];
+type CodexInstance = InstanceType<CodexConstructor>;
+type CodexThread = ReturnType<CodexInstance['startThread']>;
 
 interface CodexStreamEvent {
     type: string;
@@ -25,9 +27,10 @@ interface CodexStreamEvent {
 export class CodexProvider extends LLMProvider {
     private workingDirectory: string = '';
     private codexHome?: string;
-    private modelId: string = 'o4-mini';
+    private modelId: string = 'gpt-5';
     private skipGitRepoCheck = true;
-    private codexInstance: Codex | null = null;
+    private codexModule: CodexModule | null = null;
+    private codexInstance: CodexInstance | null = null;
     private authStatus: any = null;
 
     constructor(outputChannel: vscode.OutputChannel) {
@@ -51,7 +54,21 @@ export class CodexProvider extends LLMProvider {
                 options.codexHome = this.codexHome;
             }
 
-            this.codexInstance = new Codex(options);
+            if (!this.codexModule) {
+                try {
+                    this.codexModule = await import('@openai/codex-sdk');
+                } catch (importError) {
+                    Logger.error(`Failed to import Codex SDK: ${importError}`);
+                    throw importError;
+                }
+            }
+
+            const CodexCtor = this.codexModule?.Codex;
+            if (typeof CodexCtor !== 'function') {
+                throw new Error('Codex SDK failed to provide a Codex constructor');
+            }
+
+            this.codexInstance = new CodexCtor(options);
 
             await this.refreshAuthStatus();
 
