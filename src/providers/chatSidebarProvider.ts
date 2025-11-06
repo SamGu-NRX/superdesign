@@ -129,7 +129,7 @@ export class ChatSidebarProvider implements vscode.WebviewViewProvider {
             ? configuredLlmProvider
             : configuredModelProvider;
         const currentModel = config.get<string>('aiModel');
-        
+
         // If no specific model is set, use defaults
         let defaultModel: string;
         switch (currentProvider) {
@@ -140,7 +140,7 @@ export class ChatSidebarProvider implements vscode.WebviewViewProvider {
                 defaultModel = 'vscodelm/auto';
                 break;
             case 'codex-cli':
-                defaultModel = 'o4-mini';
+                defaultModel = 'gpt-5';
                 break;
             case 'openrouter':
                 defaultModel = 'anthropic/claude-3-7-sonnet-20250219';
@@ -150,7 +150,7 @@ export class ChatSidebarProvider implements vscode.WebviewViewProvider {
                 defaultModel = 'claude-4-sonnet-20250514';
                 break;
         }
-        
+
         webview.postMessage({
             command: 'currentProviderResponse',
             provider: currentProvider,
@@ -161,13 +161,13 @@ export class ChatSidebarProvider implements vscode.WebviewViewProvider {
     private async handleChangeProvider(model: string, webview: vscode.Webview) {
         try {
             const config = vscode.workspace.getConfiguration('superdesign');
-            
+
             // Determine provider and API key based on model
             let provider: string;
             let apiKeyKey: string;
             let configureCommand: string;
             let displayName: string;
-            
+
             if (model === 'vscodelm' || model.startsWith('vscodelm')) {
                 provider = 'vscodelm';
                 apiKeyKey = '';
@@ -190,7 +190,7 @@ export class ChatSidebarProvider implements vscode.WebviewViewProvider {
                 configureCommand = 'superdesign.configureOpenAIApiKey';
                 displayName = `OpenAI (${this.getModelDisplayName(model)})`;
             }
-            
+
             // Update both provider and specific model
             await config.update('aiModelProvider', provider, vscode.ConfigurationTarget.Global);
             await config.update('aiModel', model, vscode.ConfigurationTarget.Global);
@@ -201,7 +201,7 @@ export class ChatSidebarProvider implements vscode.WebviewViewProvider {
                     ? (provider === 'claude-code' ? 'claude-code' : provider === 'codex-cli' ? 'codex-cli' : 'vscodelm')
                     : 'claude-api';
             await config.update('llmProvider', llmProviderValue, vscode.ConfigurationTarget.Global);
-            
+
             // Check if the API key is configured for the selected provider (skip for vscodelm)
             if (provider !== 'vscodelm') {
                 const apiKey = apiKeyKey ? config.get<string>(apiKeyKey) : undefined;
@@ -211,7 +211,7 @@ export class ChatSidebarProvider implements vscode.WebviewViewProvider {
                         'Configure API Key',
                         'Later'
                     );
-                    
+
                     if (result === 'Configure API Key' && configureCommand) {
                         await vscode.commands.executeCommand(configureCommand);
                     }
@@ -229,7 +229,7 @@ export class ChatSidebarProvider implements vscode.WebviewViewProvider {
             vscode.window.showErrorMessage(`Failed to update AI model: ${error}`);
         }
     }
-    
+
     private getModelDisplayName(model: string): string {
         const modelNames: { [key: string]: string } = {
             // VS Code LM API
@@ -388,7 +388,7 @@ export class ChatSidebarProvider implements vscode.WebviewViewProvider {
             'rekaai/reka-flash-3': 'Reka Flash 3',
             'openrouter/auto': 'Auto (Best Available)'
         };
-        
+
         return modelNames[model] || model;
     }
-} 
+}
