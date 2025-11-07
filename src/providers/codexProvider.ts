@@ -74,6 +74,12 @@ export class CodexProvider extends LLMProvider {
 
             if (!this.hasLocalAuth() && this.hasEnvKeyAuth()) {
                 Logger.info('Codex CLI is falling back to API key authentication; run "codex login" to enable local CLI mode.');
+            } else if (this.hasLocalAuth()) {
+                Logger.info(
+                    `[CodexProvider] Detected local Codex CLI authentication (status=${this.authStatus?.status ?? 'unknown'}, plan=${this.authStatus?.plan ?? 'unknown'})`
+                );
+            } else {
+                Logger.warn('[CodexProvider] No Codex CLI authentication detected (local auth or API key)');
             }
 
             this.isInitialized = true;
@@ -95,6 +101,9 @@ export class CodexProvider extends LLMProvider {
             const authModule = (this.codexInstance as any).auth;
             if (authModule && typeof authModule.getStatus === 'function') {
                 this.authStatus = await authModule.getStatus();
+                Logger.info(
+                    `[CodexProvider] refreshAuthStatus -> status=${this.authStatus?.status ?? 'unknown'}, plan=${this.authStatus?.plan ?? 'unknown'}`
+                );
             }
         } catch (error) {
             Logger.warn(`Unable to query Codex auth status: ${error}`);
@@ -162,6 +171,9 @@ export class CodexProvider extends LLMProvider {
         const messages: LLMMessage[] = [];
         const selectedModel = options?.modelId || this.modelId;
         const workingDirectory = options?.cwd || this.workingDirectory;
+        Logger.info(
+            `[CodexProvider] query invoked with model="${selectedModel}", cwd="${workingDirectory}", promptLength=${prompt.length}, streaming=${typeof onMessage === 'function'}`
+        );
 
         let thread: CodexThread;
         try {
@@ -331,6 +343,7 @@ export class CodexProvider extends LLMProvider {
     private hasLocalAuth(): boolean {
         const codexDir = this.codexHome || path.join(os.homedir(), '.codex');
         const authFileExists = fs.existsSync(path.join(codexDir, 'auth.json'));
+        Logger.info(`[CodexProvider] hasLocalAuth -> codexDir=${codexDir}, auth.json exists=${authFileExists}`);
 
         const statusLoggedIn =
             this.authStatus &&
@@ -343,6 +356,9 @@ export class CodexProvider extends LLMProvider {
             (this.authStatus.status === 'chatgpt_subscriber' ||
                 (typeof this.authStatus.plan === 'string' &&
                     this.authStatus.plan.toLowerCase().includes('chatgpt')));
+        Logger.info(
+            `[CodexProvider] hasLocalAuth status check -> statusLoggedIn=${statusLoggedIn}, chatgptSubscribed=${chatgptSubscribed}`
+        );
 
         return Boolean(authFileExists || statusLoggedIn || chatgptSubscribed);
     }
@@ -350,6 +366,9 @@ export class CodexProvider extends LLMProvider {
     private hasEnvKeyAuth(): boolean {
         const codexKey = process.env.CODEX_API_KEY?.trim();
         const openAiKey = process.env.OPENAI_API_KEY?.trim();
+        Logger.info(
+            `[CodexProvider] hasEnvKeyAuth -> CODEX_API_KEY present=${Boolean(codexKey)}, OPENAI_API_KEY present=${Boolean(openAiKey)}`
+        );
         return Boolean(codexKey || openAiKey);
     }
 
@@ -372,17 +391,25 @@ export class CodexProvider extends LLMProvider {
     }
 
     hasValidConfiguration(): boolean {
-        if (this.hasLocalAuth()) {
+        const localAuth = this.hasLocalAuth();
+        const envAuth = this.hasEnvKeyAuth();
+
+        Logger.info(
+            `[CodexProvider] hasValidConfiguration -> localAuth=${localAuth}, envAuth=${envAuth}, codexHome=${this.codexHome || 'default'}`
+        );
+
+        if (localAuth) {
             return true;
         }
 
-        if (this.hasEnvKeyAuth()) {
+        if (envAuth) {
             Logger.warn(
                 'Codex CLI local login not detected; continuing with API key authentication. Run "codex login" to switch to local mode.'
             );
             return true;
         }
 
+        Logger.error('[CodexProvider] No valid Codex authentication detected (neither local login nor API key configured)');
         return false;
     }
 

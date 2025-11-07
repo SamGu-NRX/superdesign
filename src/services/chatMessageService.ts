@@ -179,7 +179,7 @@ export class ChatMessageService {
                         break;
                     case 'codex-cli':
                         providerName = 'Codex CLI';
-                        configureCommand = 'workbench.action.openSettings';
+                        configureCommand = '';
                         break;
                     case 'openai':
                         providerName = 'OpenAI';
@@ -188,24 +188,34 @@ export class ChatMessageService {
                 }
 
                 const hasApiKey = this.agentService.hasApiKey();
-                const displayMessage = hasApiKey ?
-                    `Invalid ${providerName} API key. Please check your configuration.` :
-                    `${providerName} API key not configured. Please set up your API key to use this AI model.`;
+                let displayMessage: string;
+                if (providerName === 'Codex CLI') {
+                    displayMessage = hasApiKey
+                        ? 'Codex CLI authentication appears invalid. Run `codex logout` followed by `codex login`, or set CODEX_API_KEY / OPENAI_API_KEY environment variables.'
+                        : 'Codex CLI authentication not detected. Run `codex login` in your terminal (ChatGPT+ required) or set CODEX_API_KEY / OPENAI_API_KEY environment variables before retrying.';
+                } else {
+                    displayMessage = hasApiKey ?
+                        `Invalid ${providerName} API key. Please check your configuration.` :
+                        `${providerName} API key not configured. Please set up your API key to use this AI model.`;
+                }
+
+                const actions: any[] = [];
+                if (configureCommand) {
+                    actions.push({
+                        text: `Configure ${providerName} API Key`,
+                        command: configureCommand,
+                    });
+                }
+                actions.push({
+                    text: 'Open Settings',
+                    command: 'workbench.action.openSettings',
+                    args: '@ext:SuperdesignDev.superdesign',
+                });
 
                 webview.postMessage({
-                  command: "chatErrorWithActions",
+                  command: 'chatErrorWithActions',
                   error: displayMessage,
-                  actions: [
-                    {
-                      text: `Configure ${providerName} API Key`,
-                      command: configureCommand,
-                    },
-                    {
-                      text: "Open Settings",
-                      command: "workbench.action.openSettings",
-                      args: "@ext:SuperdesignDev.superdesign",
-                    },
-                  ],
+                  actions,
                 });
             } else {
                 // Regular error - show standard error message

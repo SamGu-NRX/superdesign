@@ -1,9 +1,9 @@
 import * as vscode from 'vscode';
-import { ClaudeCodeService } from '../services/claudeCodeService';
 import { ChatMessageService } from '../services/chatMessageService';
 import { generateWebviewHtml } from '../templates/webviewTemplate';
 import { WebviewContext } from '../types/context';
 import { AgentService } from '../types/agent';
+import { Logger } from '../services/logger';
 
 export class ChatSidebarProvider implements vscode.WebviewViewProvider {
     public static readonly VIEW_TYPE = 'superdesign.chatView';
@@ -151,6 +151,10 @@ export class ChatSidebarProvider implements vscode.WebviewViewProvider {
                 break;
         }
 
+        Logger.info(
+            `[ChatSidebarProvider] handleGetCurrentProvider -> configuredModelProvider=${configuredModelProvider}, configuredLlmProvider=${configuredLlmProvider}, inferredProvider=${currentProvider}, currentModel=${currentModel}`
+        );
+
         webview.postMessage({
             command: 'currentProviderResponse',
             provider: currentProvider,
@@ -161,6 +165,7 @@ export class ChatSidebarProvider implements vscode.WebviewViewProvider {
     private async handleChangeProvider(model: string, webview: vscode.Webview) {
         try {
             const config = vscode.workspace.getConfiguration('superdesign');
+            Logger.info(`[ChatSidebarProvider] handleChangeProvider called with model="${model}"`);
 
             // Determine provider and API key based on model
             let provider: string;
@@ -202,9 +207,16 @@ export class ChatSidebarProvider implements vscode.WebviewViewProvider {
                 displayName = `OpenAI (${this.getModelDisplayName(model)})`;
             }
 
+            Logger.info(
+                `[ChatSidebarProvider] Model "${model}" mapped to provider="${provider}" (apiKeySetting="${apiKeyKey}", configureCommand="${configureCommand}")`
+            );
+
             // Update both provider and specific model
             await config.update('aiModelProvider', provider, vscode.ConfigurationTarget.Global);
             await config.update('aiModel', model, vscode.ConfigurationTarget.Global);
+            Logger.info(
+                `[ChatSidebarProvider] Updated configuration: aiModelProvider=${config.get('aiModelProvider')}, aiModel=${config.get('aiModel')}`
+            );
 
             // Keep llmProvider (used by ClaudeCodeService bridge) in sync for local providers
             const llmProviderValue =
@@ -212,10 +224,16 @@ export class ChatSidebarProvider implements vscode.WebviewViewProvider {
                     ? provider
                     : 'claude-api';
             await config.update('llmProvider', llmProviderValue, vscode.ConfigurationTarget.Global);
+            Logger.info(
+                `[ChatSidebarProvider] Synchronized llmProvider=${config.get('llmProvider')} for provider=${provider}`
+            );
 
             // Check if the API key is configured for the selected provider (skip for vscodelm)
             if (provider !== 'vscodelm' && provider !== 'codex-cli') {
                 const apiKey = apiKeyKey ? config.get<string>(apiKeyKey) : undefined;
+                Logger.info(
+                    `[ChatSidebarProvider] API key lookup for provider=${provider}: setting="${apiKeyKey}", isConfigured=${Boolean(apiKey)}`
+                );
                 if (!apiKey) {
                     const result = await vscode.window.showWarningMessage(
                         `${displayName} selected, but API key is not configured. Would you like to configure it now?`,
@@ -235,8 +253,10 @@ export class ChatSidebarProvider implements vscode.WebviewViewProvider {
                 provider: provider,
                 model: model
             });
+            Logger.info(`[ChatSidebarProvider] providerChanged message sent (provider=${provider}, model=${model})`);
 
         } catch (error) {
+            Logger.error(`[ChatSidebarProvider] Failed to update AI model: ${error}`);
             vscode.window.showErrorMessage(`Failed to update AI model: ${error}`);
         }
     }

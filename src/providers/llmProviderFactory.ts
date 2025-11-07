@@ -21,17 +21,22 @@ export class LLMProviderFactory {
     }
 
     async getProvider(providerType?: LLMProviderType): Promise<LLMProvider> {
+        Logger.info(`[LLMProviderFactory] getProvider called with providerType=${providerType ?? 'undefined'}`);
         // If no provider type specified, get from configuration
         if (!providerType) {
             providerType = this.getConfiguredProviderType();
         }
+        Logger.info(`[LLMProviderFactory] Resolved providerType=${providerType}`);
 
         // Check if provider is already initialized
         if (this.providers.has(providerType)) {
             const provider = this.providers.get(providerType)!;
             if (provider.isReady()) {
+                Logger.info(`[LLMProviderFactory] Reusing cached provider for type=${providerType}`);
                 this.currentProvider = provider;
                 return provider;
+            } else {
+                Logger.info(`[LLMProviderFactory] Cached provider for type=${providerType} not ready, reinitializing`);
             }
         }
 
@@ -44,6 +49,7 @@ export class LLMProviderFactory {
         // Store the provider
         this.providers.set(providerType, provider);
         this.currentProvider = provider;
+        Logger.info(`[LLMProviderFactory] Provider initialized and cached for type=${providerType}`);
 
         return provider;
     }
@@ -72,6 +78,9 @@ export class LLMProviderFactory {
     private getConfiguredProviderType(): LLMProviderType {
         const config = vscode.workspace.getConfiguration('superdesign');
         const providerType = config.get<string>('llmProvider', 'claude-api');
+        Logger.info(
+            `[LLMProviderFactory] getConfiguredProviderType -> llmProvider="${providerType}", aiModelProvider="${config.get('aiModelProvider')}", aiModel="${config.get('aiModel')}"`
+        );
 
         // Map string to enum
         switch (providerType.toLowerCase()) {
@@ -93,10 +102,12 @@ export class LLMProviderFactory {
 
     async refreshCurrentProvider(): Promise<boolean> {
         if (!this.currentProvider) {
+            Logger.warn('[LLMProviderFactory] refreshCurrentProvider called with no active provider');
             return false;
         }
 
         try {
+            Logger.info(`[LLMProviderFactory] Refreshing provider name=${this.currentProvider.getProviderName()}`);
             return await this.currentProvider.refreshConfiguration();
         } catch (error) {
             Logger.error(`Failed to refresh current provider: ${error}`);

@@ -621,7 +621,11 @@ I've created the html design, please reveiw and let me know if you need any chan
         const aiModelProvider = config.get<string>('aiModelProvider', 'anthropic');
         const llmProvider = config.get<string>('llmProvider', 'claude-api');
         const specificModel = config.get<string>('aiModel');
-        
+
+        this.outputChannel.appendLine(
+            `[CustomAgentService] Provider selection snapshot -> aiModelProvider=${aiModelProvider}, llmProvider=${llmProvider}, specificModel=${specificModel}`
+        );
+
         const localProviders = ['claude-code', 'codex-cli', 'vscodelm'];
         const isUsingLocalProvider =
             localProviders.includes(aiModelProvider) || localProviders.includes(llmProvider);
@@ -639,7 +643,10 @@ I've created the html design, please reveiw and let me know if you need any chan
             this.outputChannel.appendLine(
                 `Using ClaudeCodeService bridge for ${activeLocalProvider} provider`
             );
-            
+            this.outputChannel.appendLine(
+                `[CustomAgentService] Local provider resolved -> activeLocalProvider=${activeLocalProvider}, aiModelProvider=${aiModelProvider}, llmProvider=${llmProvider}, specificModel=${specificModel}`
+            );
+
             // Convert conversation history to prompt for ClaudeCodeService
             let queryPrompt = '';
             if (conversationHistory && conversationHistory.length > 0) {
